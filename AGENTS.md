@@ -41,10 +41,12 @@ Read it before a version bump or a documentation change.
 
 1. **Plan** — produce a plan table with columns `# / Area or File / Change / Reason /
    Type`, and declare the intended release stage. `Type` is `code`, `docs`,
-   `config-basic`, or `config-advanced`.
-2. **Author review** — present the plan and stop. The author may intervene; do not touch
-   code until the author agrees. The author is the human operator / repository owner.
-3. **Implement** — make the approved changes.
+   `config-basic`, or `config-advanced`. Save the plan as a document under `docs/`
+   (see Plan documents).
+2. **Author review** — present the plan and stop. On acceptance, update the plan document
+   to `accepted` and record what was accepted. Do not touch code until the author agrees.
+3. **Implement** — make the approved changes, report progress as `NN% — <current task>`,
+   and update the plan document status as work proceeds.
 4. **Compile and test** — build and run the tests until clean. Skip per the applicability
    policy below.
 5. **Version bump** — update `version` in `project.config.json` using the versioning
@@ -53,14 +55,27 @@ Read it before a version bump or a documentation change.
    cross-linked; create docs for any newly configured language.
 7. **Release notes** — write English-only notes listing every change and every fix
    exhaustively; content is required; prepend them to the changelog.
-8. **Commit** — commit code, version, docs, and changelog together. Subject:
-   `<type>(<area>): <summary> (v<version>)`. The body must list every change in detail,
-   in English.
-9. **Push** — verify the remote matches the repository above, then push the commits
-   before releasing.
+8. **Commit** — commit in batches: each logical step is its own commit, not one giant
+   commit. Subject: `<type>(<area>): <summary> (v<version>)`. The body must list every
+   change in detail, in English.
+9. **Push** — verify the remote matches the repository above, then push the batches before
+   releasing.
 10. **Publish the release** — verify the remote again, then tag the version and push the
     tag, and publish the release with the same English notes as the changelog. Mark it a
     pre-release unless the stage is `stable`.
+
+---
+
+## Plan documents
+
+- Before implementing anything, write the plan as a numbered document in `docs/` in the
+  project root (e.g. `docs/plan-1.md`). Plan documents are written in **English**.
+- A plan has a status: `draft` → `accepted` → `in progress` → `done`.
+- On acceptance, mark the document `accepted` and record what was accepted and any
+  follow-up updates.
+- Keep the document updated as the work and its status change.
+- Report progress as `NN% — <current task>` so the author can follow along.
+- Commit and push in batches (one logical step per batch) so history stays readable.
 
 ---
 
@@ -111,6 +126,15 @@ English only, exhaustive, and identical in the changelog and the release body.
 
 ---
 
+## Language
+
+- Talk to the author in the author's own language. Mixing languages (e.g. Vietnamese and
+  English) in conversation is fine.
+- Written artifacts — plan documents, code, commit messages, changelog, and AGENTS.md —
+  stay in **English**. User-facing docs follow the configured languages.
+
+---
+
 ## Rules for the agent
 
 1. No implementation, version bump, or release without the plan being approved.
@@ -123,4 +147,5 @@ English only, exhaustive, and identical in the changelog and the release body.
 6. Every release declares a stage and uses the matching version suffix.
 7. Commit messages are English-only and list every change in detail.
 8. Release notes are English-only and exhaustive; a release must contain its content.
-9. This file stays in English.
+9. Written artifacts (plan documents, code, commits, changelog, AGENTS.md) stay in
+   English; talk to the author in the author's own language.
