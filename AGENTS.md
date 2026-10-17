@@ -44,10 +44,12 @@ The CI retry limit is not hardcoded here. Read it from
 
 1. **Plan** — produce a plan table with columns `# / Area or File / Change / Reason /
    Type`, and declare the intended release stage. `Type` is `code`, `docs`,
-   `config-basic`, or `config-advanced`. Save the plan as a document under `docs/`
-   (see Plan documents).
+   `config-basic`, or `config-advanced`. Always write the plan into a document under
+   `docs/` — never state it only in chat (see Plan documents).
 2. **Author review** — present the plan and stop. On acceptance, update the plan document
-   to `accepted` and record what was accepted. Do not touch code until the author agrees.
+   to `accepted` and record what was accepted. Every later author request (a new feature,
+   an edit, a fix) must be recorded in the document as a new revision (`v1` → `v2` → …) and
+   pushed. Do not touch code until the author agrees.
 3. **Implement** — split the work across subagents (one agent per part) instead of a single
    agent writing everything. Report progress as `NN% — <current task>` and update the plan
    document status as work proceeds.
@@ -84,12 +86,16 @@ The CI retry limit is not hardcoded here. Read it from
 
 - Before implementing anything, write the plan as a numbered document in `docs/` in the
   project root (e.g. `docs/plan-1.md`). Plan documents are written in **English**.
+- The plan must always be written into the document — never stated only in chat.
 - A plan has a status: `draft` → `accepted` → `in progress` → `done`.
 - On acceptance, mark the document `accepted` and record what was accepted and any
   follow-up updates.
+- Record every change the author requests (a new feature, an edit, a fix) in the document
+  as a new revision (`v1` → `v2` → …), so the full plan history is visible.
 - Keep the document updated as the work and its status change.
 - Report progress as `NN% — <current task>` so the author can follow along.
-- Commit and push in batches (one logical step per batch) so history stays readable.
+- Commit and push plan documents so the community can see them; commit and push in batches
+  (one logical step per batch) so history stays readable.
 
 ---
 
@@ -174,3 +180,5 @@ English only, exhaustive, and identical in the changelog and the release body.
     English; talk to the author in the author's own language.
 12. Split implementation across subagents (one agent per part) instead of writing
     everything in a single agent.
+13. Always write the plan into its document and push it; never state a plan only in chat,
+    and record every author-requested change as a new revision.
