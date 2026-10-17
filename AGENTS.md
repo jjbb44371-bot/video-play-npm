@@ -47,8 +47,10 @@ Read it before a version bump or a documentation change.
    to `accepted` and record what was accepted. Do not touch code until the author agrees.
 3. **Implement** — make the approved changes, report progress as `NN% — <current task>`,
    and update the plan document status as work proceeds.
-4. **Compile and test** — build and run the tests until clean. Skip per the applicability
-   policy below.
+4. **Compile and test** — build and run the tests. If they fail, fix and re-run, but always
+   bound the loop: a small attempt limit (e.g. 3) and a short time budget. If it still
+   fails after that, **stop and report to the author** instead of retrying forever. Skip
+   per the applicability policy below.
 5. **Clean up** — delete everything the test run created (temporary data, uploaded files,
    database rows or files, logs, generated artifacts) so leftovers cannot skew later test
    results.
@@ -111,6 +113,7 @@ Format `MAJOR.MINOR.PATCH`, each segment a single digit `0`–`9`.
 - Code, or advanced configuration that can affect behavior/runtime → **required**.
 - Documentation only, or basic configuration → **skip**.
 - When unsure, treat it as required.
+- Bound every run: an attempt limit and a time budget. Never loop indefinitely.
 - Whenever tests run, they must be followed by cleanup (step 5).
 
 ---
@@ -144,13 +147,15 @@ English only, exhaustive, and identical in the changelog and the release body.
 1. No implementation, version bump, or release without the plan being approved.
 2. Always start with the plan.
 3. Never skip required compile/test.
-4. After testing, always clean up the artifacts the test run created.
-5. Confirm the target repository before every push and release. If it does not match,
+4. Never loop: bound every build/test retry with an attempt limit and a time budget; when
+   exceeded, stop and report to the author.
+5. After testing, always clean up the artifacts the test run created.
+6. Confirm the target repository before every push and release. If it does not match,
    find out why and fix it before proceeding; never act on a repo that is not
    `video-play-npm`.
-6. Commit before pushing; push before releasing.
-7. Every release declares a stage and uses the matching version suffix.
-8. Commit messages are English-only and list every change in detail.
-9. Release notes are English-only and exhaustive; a release must contain its content.
-10. Written artifacts (plan documents, code, commits, changelog, AGENTS.md) stay in
+7. Commit before pushing; push before releasing.
+8. Every release declares a stage and uses the matching version suffix.
+9. Commit messages are English-only and list every change in detail.
+10. Release notes are English-only and exhaustive; a release must contain its content.
+11. Written artifacts (plan documents, code, commits, changelog, AGENTS.md) stay in
     English; talk to the author in the author's own language.
