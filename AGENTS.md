@@ -35,6 +35,9 @@ Process metadata lives in [`project.config.json`](./project.config.json):
 
 Read it before a version bump or a documentation change.
 
+The CI retry limit is not hardcoded here. Read it from
+[`ci.config.json`](./ci.config.json) (`maxRetries`) and loop that many times.
+
 ---
 
 ## The workflow (in order)
@@ -63,8 +66,9 @@ Read it before a version bump or a documentation change.
    workflow **manually** (`workflow_dispatch` via the GitHub CLI/API), then check the runs:
    find the **newest** run, select it, and poll its status every 30 seconds using a timer.
    If it reports success, continue to the next step. If it reports failure, find the cause,
-   fix it, and trigger again — repeating this process up to a maximum of **36** attempts,
-   then stop and report. Skip per the applicability policy below.
+   fix it, and trigger again — repeating this process up to the retry limit read from
+   [`ci.config.json`](./ci.config.json), then stop and report. Skip per the applicability
+   policy below.
 10. **Clean up** — delete everything a local test run created (temporary data, uploaded
     files, database rows or files, logs, generated artifacts) so leftovers cannot skew
     later test results.
@@ -117,7 +121,7 @@ Format `MAJOR.MINOR.PATCH`, each segment a single digit `0`–`9`.
 - Documentation only, or basic configuration → **skip**.
 - When unsure, treat it as required.
 - Build and tests run on GitHub Actions (`.github/workflows/ci.yml`), triggered manually
-  after pushing, then polled every 30 seconds, with a maximum of 36 attempts.
+  after pushing, then polled every 30 seconds, up to the retry limit in `ci.config.json`.
 - Whenever tests run, they must be followed by cleanup (step 10).
 
 ---
@@ -153,7 +157,7 @@ English only, exhaustive, and identical in the changelog and the release body.
 3. Never skip required compile/test.
 4. Trigger CI manually after pushing (it does not run on its own), check the newest run,
    and poll it every 30 seconds: on success continue; on failure fix and re-trigger, capped
-   at a maximum of 36 attempts.
+   at the retry limit read from `ci.config.json`.
 5. After testing, always clean up the artifacts the test run created.
 6. Confirm the target repository before every push and release. If it does not match,
    find out why and fix it before proceeding; never act on a repo that is not
