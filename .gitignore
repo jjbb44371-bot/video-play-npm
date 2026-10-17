@@ -10,6 +10,12 @@ server/uploads/*
 server/data/*
 !server/data/.gitkeep
 
+# Test artifacts
+server/.tmp-test/
+
+# Temporary release notes (published as the GitHub release body)
+RELEASE_NOTES.md
+
 # Env
 .env
 .env.local

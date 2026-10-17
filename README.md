@@ -1,74 +1,90 @@
+**English** · [Tiếng Việt](./README.vi.md)
+
 # video-play-npm
 
-Ứng dụng xem video full-stack (kiểu YouTube), kiến trúc **server-authoritative**: mọi quyền
-xử lý và dữ liệu nằm ở máy chủ, máy khách (trình duyệt) chỉ hiển thị những gì server trả về.
+A full-stack video streaming app (YouTube-style) with a **server-authoritative**
+architecture: all processing and data live on the server, and the client (browser) only
+displays what the server returns.
 
-## Kiến trúc
+## Architecture
 
-- **server/** — backend [Fastify](https://fastify.dev/)
-  - Nhận upload video (multipart), xác thực MIME, lưu file trên máy chủ.
-  - Quản lý metadata (tiêu đề, mô tả, lượt xem, thời gian) trong `server/data/videos.json`.
-  - Streaming hỗ trợ HTTP Range (tua video, phát mượt).
-  - Tự sinh ID, tự tăng lượt xem, tự kiểm soát danh sách video → server giữ toàn quyền.
-- **client/** — frontend React + Vite
-  - Trang chủ (lưới video), trang xem video, trang upload.
-  - Không có quyền quyết định dữ liệu; chỉ gọi API của server.
+- **server/** — [Fastify](https://fastify.dev/) backend
+  - Accepts video uploads (multipart), validates the MIME type, and stores files on the server.
+  - Manages metadata (title, description, views, timestamps) in `server/data/videos.json`.
+  - Streaming supports HTTP Range (seeking, smooth playback).
+  - Generates IDs, increments views, and controls the video list itself → the server holds all authority.
+- **client/** — React + Vite frontend
+  - Home page (video grid), watch page, and upload page.
+  - Has no authority over data; it only calls the server API.
 
-## Yêu cầu
+## Requirements
 
-- Node.js 20+ (đã kiểm thử với Node 24)
+- Node.js 20+ (tested with Node 24)
 
-## Cài đặt
+## Install
 
 ```sh
 npm install
 ```
 
-## Chạy chế độ phát triển
+## Run in development
 
 ```sh
 npm run dev
 ```
 
 - Server: http://localhost:4000
-- Client (Vite dev + proxy `/api`): http://localhost:5173
+- Client (Vite dev + `/api` proxy): http://localhost:5173
 
-Chạy riêng từng phần:
+Run each part separately:
 
 ```sh
 npm run dev:server
 npm run dev:client
 ```
 
-## Chạy production
+## Run in production
 
 ```sh
-npm run build      # build client vào client/dist
-npm start          # Fastify phục vụ API + client/dist
+npm run build      # build the client into client/dist
+npm start          # Fastify serves the API + client/dist
 ```
 
-Sau đó mở http://localhost:4000
+Then open http://localhost:4000
+
+## Test
+
+```sh
+npm test
+```
 
 ## API
 
-| Method | Endpoint                  | Mô tả                          |
-| ------ | ------------------------- | ------------------------------ |
-| GET    | `/api/health`             | Kiểm tra server                |
-| GET    | `/api/videos`             | Danh sách video                |
-| GET    | `/api/videos/:id`         | Chi tiết video                 |
-| GET    | `/api/videos/:id/stream`  | Stream video (hỗ trợ Range)    |
-| POST   | `/api/videos/:id/view`    | Tăng lượt xem (server xử lý)   |
-| POST   | `/api/videos`             | Upload video (multipart)       |
-| PATCH  | `/api/videos/:id`         | Cập nhật tiêu đề/mô tả         |
-| DELETE | `/api/videos/:id`         | Xoá video                      |
+| Method | Endpoint                  | Description                       |
+| ------ | ------------------------- | --------------------------------- |
+| GET    | `/api/health`             | Server health check               |
+| GET    | `/api/videos`             | List videos                       |
+| GET    | `/api/videos/:id`         | Video details                     |
+| GET    | `/api/videos/:id/stream`  | Stream video (Range supported)    |
+| POST   | `/api/videos/:id/view`    | Increment views (handled by server) |
+| POST   | `/api/videos`             | Upload video (multipart)          |
+| PATCH  | `/api/videos/:id`         | Update title/description          |
+| DELETE | `/api/videos/:id`         | Delete video                      |
 
-## Biến môi trường
+## Environment variables
 
-| Biến              | Mặc định        | Ý nghĩa                     |
-| ----------------- | --------------- | --------------------------- |
-| `PORT`            | `4000`          | Cổng server                 |
-| `HOST`            | `0.0.0.0`       | Địa chỉ bind                |
-| `MAX_UPLOAD_BYTES`| `1073741824`    | Giới hạn dung lượng upload  |
-| `DATA_DIR`        | `server/data`   | Thư mục metadata            |
-| `UPLOADS_DIR`     | `server/uploads`| Thư mục chứa video          |
-| `CLIENT_DIST`     | `client/dist`   | Thư mục build của client    |
+| Variable          | Default         | Meaning                    |
+| ----------------- | --------------- | -------------------------- |
+| `PORT`            | `4000`          | Server port                |
+| `HOST`            | `0.0.0.0`       | Bind address               |
+| `MAX_UPLOAD_BYTES`| `1073741824`    | Upload size limit          |
+| `DATA_DIR`        | `server/data`   | Metadata directory         |
+| `CLIENT_DIST`     | `client/dist`   | Client build directory     |
+| `UPLOADS_DIR`     | `server/uploads`| Video files directory      |
+
+## Workflow
+
+The project workflow is documented in English in [`AGENTS.md`](./AGENTS.md)
+(English only, not translated). Process configuration lives in
+[`project.config.json`](./project.config.json). Change history lives in
+[`CHANGELOG.md`](./CHANGELOG.md).
