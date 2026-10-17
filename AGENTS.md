@@ -48,24 +48,24 @@ Read it before a version bump or a documentation change.
 3. **Implement** — split the work across subagents (one agent per part) instead of a single
    agent writing everything. Report progress as `NN% — <current task>` and update the plan
    document status as work proceeds.
-4. **Compile and test** — build and tests run on **GitHub Actions**
-   (`.github/workflows/ci.yml`), not locally. Push the work to trigger CI and wait for the
-   run within a time budget (e.g. 10 minutes). If the budget expires, that is not an
-   error: continue to the next step. Skip per the applicability policy below.
-5. **Clean up** — delete everything the test run created (temporary data, uploaded files,
-   database rows or files, logs, generated artifacts) so leftovers cannot skew later test
-   results.
-6. **Version bump** — update `version` in `project.config.json` using the versioning
+4. **Version bump** — update `version` in `project.config.json` using the versioning
    policy and the approved stage; keep every `package.json` version in sync.
-7. **Documentation** — update docs in every configured language and keep them
+5. **Documentation** — update docs in every configured language and keep them
    cross-linked; create docs for any newly configured language.
-8. **Release notes** — write English-only notes listing every change and every fix
+6. **Release notes** — write English-only notes listing every change and every fix
    exhaustively; content is required; prepend them to the changelog.
-9. **Commit** — commit in batches: each logical step is its own commit, not one giant
+7. **Commit** — commit in batches: each logical step is its own commit, not one giant
    commit. Subject: `<type>(<area>): <summary> (v<version>)`. The body must list every
    change in detail, in English.
-10. **Push** — verify the remote matches the repository above, then push the batches before
-    releasing.
+8. **Push** — verify the remote matches the repository above, then push the batches. CI
+   runs on push, so nothing builds or tests until this step.
+9. **Compile and test** — build and tests run on **GitHub Actions**
+   (`.github/workflows/ci.yml`), not locally. Wait for the run within a time budget (e.g.
+   10 minutes). If the budget expires, that is not an error: continue to the next step.
+   Skip per the applicability policy below.
+10. **Clean up** — delete everything a local test run created (temporary data, uploaded
+    files, database rows or files, logs, generated artifacts) so leftovers cannot skew
+    later test results.
 11. **Publish the release** — verify the remote again, then tag the version and push the
     tag, and publish the release with the same English notes as the changelog. Mark it a
     pre-release unless the stage is `stable`.
@@ -149,8 +149,9 @@ English only, exhaustive, and identical in the changelog and the release body.
 1. No implementation, version bump, or release without the plan being approved.
 2. Always start with the plan.
 3. Never skip required compile/test.
-4. Compile and test on GitHub Actions (`.github/workflows/ci.yml`) with a time budget; when
-   the budget expires, move on to the next step instead of halting or reporting an error.
+4. Compile and test on GitHub Actions (`.github/workflows/ci.yml`) only after pushing,
+   within a time budget; when the budget expires, move on to the next step instead of
+   halting or reporting an error.
 5. After testing, always clean up the artifacts the test run created.
 6. Confirm the target repository before every push and release. If it does not match,
    find out why and fix it before proceeding; never act on a repo that is not
