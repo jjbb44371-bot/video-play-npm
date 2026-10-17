@@ -98,9 +98,22 @@ Write the release notes in **English only**. No Vietnamese and no other language
 ### 8. Commit
 Commit the code, version bump, documentation, and changelog together.
 
-- Commit message format: `<type>(<area>): <summary> (v<version>)`.
+- Subject line format: `<type>(<area>): <summary> (v<version>)`.
 - `type` is one of `feat`, `fix`, `docs`, `refactor`, `chore`.
+- The commit **body** must list **every** change in detail. The more detail, the better.
+  List each changed file/area, what changed, and why.
+- The commit message (subject **and** body) is written in **English only**.
 - Never commit secrets or uploaded/generated media.
+
+Example commit body:
+
+```
+- server/src/routes/videos.js: add GET /api/videos/:id/related endpoint
+- client/src/pages/Watch.jsx: render the related-videos sidebar
+- README.md, README.vi.md: document the new endpoint (EN + VI)
+- CHANGELOG.md: add the v1.2.0 entry
+- project.config.json, package.json: bump version to 1.2.0
+```
 
 ### 9. Push
 **Before creating any release**, push the commits to the remote repository.
@@ -260,6 +273,7 @@ language switcher.
 3. Never skip compile/test when the change is code or advanced-config related.
 4. Always commit (step 8) before pushing (step 9), and push before publishing (step 10).
 5. Every release must declare its stage and use the matching version suffix.
-6. Release notes are always English-only and always exhaustive.
-7. Every release must contain its full content — never an empty or placeholder release.
-8. This workflow document (`AGENTS.md`) stays in English.
+6. Commit messages are English-only and list every change in detail.
+7. Release notes are always English-only and always exhaustive.
+8. Every release must contain its full content — never an empty or placeholder release.
+9. This workflow document (`AGENTS.md`) stays in English.
