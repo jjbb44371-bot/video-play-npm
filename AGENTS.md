@@ -53,8 +53,10 @@ The CI retry limit is not hardcoded here. Read it from
    document status as work proceeds.
 4. **Version bump** — update `version` in `project.config.json` using the versioning
    policy and the approved stage; keep every `package.json` version in sync.
-5. **Documentation** — update docs in every configured language and keep them
-   cross-linked; create docs for any newly configured language.
+5. **Documentation** — read the configured languages from
+   [`project.config.json`](./project.config.json) (`languages`, `defaultLanguage`), then
+   update docs in every configured language and keep them cross-linked; create docs for any
+   newly configured language.
 6. **Release notes** — write English-only notes listing every change and every fix
    exhaustively; content is required; prepend them to the changelog.
 7. **Commit** — commit in batches: each logical step is its own commit, not one giant
@@ -128,6 +130,8 @@ Format `MAJOR.MINOR.PATCH`, each segment a single digit `0`–`9`.
 
 ## Documentation layout
 
+- Read the language list from [`project.config.json`](./project.config.json) (`languages`,
+  `defaultLanguage`) before writing or updating any docs.
 - The `defaultLanguage` uses the un-suffixed file; other languages use a suffix
   (e.g. `README.md` / `README.vi.md`).
 - User-facing docs start with a language switcher linking the versions. English-only docs
