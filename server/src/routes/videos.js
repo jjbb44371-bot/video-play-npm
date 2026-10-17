@@ -11,6 +11,7 @@ import {
   updateVideo,
   newId
 } from '../store.js'
+import { requireAuth, requireOwnerOrAdmin } from '../auth/index.js'
 
 const EXT_BY_MIME = {
   'video/mp4': '.mp4',
@@ -35,6 +36,10 @@ function publicVideo(video, { baseUrl } = {}) {
 }
 
 export default async function videoRoutes(fastify) {
+  const requireVideoOwner = requireOwnerOrAdmin({
+    getResource: (req) => getVideo(req.params.id)
+  })
+
   fastify.get('/api/videos', async (req, reply) => {
     const videos = await listVideos()
     return { data: videos.map((v) => publicVideo(v)) }
@@ -101,7 +106,7 @@ export default async function videoRoutes(fastify) {
     return { data: publicVideo(video) }
   })
 
-  fastify.post('/api/videos', async (req, reply) => {
+  fastify.post('/api/videos', { preHandler: requireAuth }, async (req, reply) => {
     let data
     try {
       data = await req.file({ limits: { fileSize: config.maxUploadBytes } })
@@ -168,27 +173,36 @@ export default async function videoRoutes(fastify) {
       filename,
       originalName: data.filename,
       mimeType,
-      size
+      size,
+      userId: req.user ? req.user.id : null
     })
 
     return reply.code(201).send({ data: publicVideo(video) })
   })
 
-  fastify.patch('/api/videos/:id', async (req, reply) => {
-    const body = req.body || {}
-    const patch = {}
-    if (typeof body.title === 'string') patch.title = body.title.trim().slice(0, 200)
-    if (typeof body.description === 'string') {
-      patch.description = body.description.trim().slice(0, 5000)
+  fastify.patch(
+    '/api/videos/:id',
+    { preHandler: [requireAuth, requireVideoOwner] },
+    async (req, reply) => {
+      const body = req.body || {}
+      const patch = {}
+      if (typeof body.title === 'string') patch.title = body.title.trim().slice(0, 200)
+      if (typeof body.description === 'string') {
+        patch.description = body.description.trim().slice(0, 5000)
+      }
+      const video = await updateVideo(req.params.id, patch)
+      if (!video) return reply.code(404).send({ error: 'Video not found' })
+      return { data: publicVideo(video) }
     }
-    const video = await updateVideo(req.params.id, patch)
-    if (!video) return reply.code(404).send({ error: 'Video not found' })
-    return { data: publicVideo(video) }
-  })
+  )
 
-  fastify.delete('/api/videos/:id', async (req, reply) => {
-    const video = await removeVideo(req.params.id)
-    if (!video) return reply.code(404).send({ error: 'Video not found' })
-    return { data: { id: video.id } }
-  })
+  fastify.delete(
+    '/api/videos/:id',
+    { preHandler: [requireAuth, requireVideoOwner] },
+    async (req, reply) => {
+      const video = await removeVideo(req.params.id)
+      if (!video) return reply.code(404).send({ error: 'Video not found' })
+      return { data: { id: video.id } }
+    }
+  )
 }

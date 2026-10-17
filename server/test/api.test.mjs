@@ -16,6 +16,7 @@ process.env.CLIENT_DIST = path.join(tmp, 'no-client')
 const { buildServer } = await import('../src/index.js')
 
 const BOUNDARY = '----videoPlayNpmBoundary'
+const JSON_HEADERS = { 'content-type': 'application/json' }
 
 function buildMultipart({ title, description, filename, contentType, content }) {
   const chunks = []
@@ -38,6 +39,21 @@ function buildMultipart({ title, description, filename, contentType, content }) 
   return Buffer.concat(chunks)
 }
 
+function cookieHeader(res) {
+  return (res.cookies || []).map((c) => `${c.name}=${c.value}`).join('; ')
+}
+
+async function registerUser(app, username = 'tester', password = 'secret123') {
+  const res = await app.inject({
+    method: 'POST',
+    url: '/api/auth/register',
+    headers: JSON_HEADERS,
+    payload: { username, password }
+  })
+  assert.equal(res.statusCode, 201)
+  return cookieHeader(res)
+}
+
 const mp4Bytes = Buffer.alloc(4096, 7)
 
 test('health check responds ok', async () => {
@@ -53,17 +69,115 @@ test('health check responds ok', async () => {
   }
 })
 
+test('register, login, me, and logout lifecycle', async () => {
+  const app = await buildServer()
+  try {
+    const register = await app.inject({
+      method: 'POST',
+      url: '/api/auth/register',
+      headers: JSON_HEADERS,
+      payload: { username: 'alice', email: 'alice@example.com', password: 'secret123' }
+    })
+    assert.equal(register.statusCode, 201)
+    assert.equal(register.json().data.username, 'alice')
+    assert.equal(register.json().data.password, undefined)
+    assert.equal(register.json().data.password_hash, undefined)
+    let cookie = cookieHeader(register)
+
+    const me = await app.inject({
+      method: 'GET',
+      url: '/api/auth/me',
+      headers: { cookie }
+    })
+    assert.equal(me.statusCode, 200)
+    assert.equal(me.json().data.username, 'alice')
+
+    const logout = await app.inject({
+      method: 'POST',
+      url: '/api/auth/logout',
+      headers: { cookie }
+    })
+    assert.equal(logout.statusCode, 200)
+
+    const afterLogout = await app.inject({
+      method: 'GET',
+      url: '/api/auth/me',
+      headers: { cookie }
+    })
+    assert.equal(afterLogout.statusCode, 401)
+
+    const badLogin = await app.inject({
+      method: 'POST',
+      url: '/api/auth/login',
+      headers: JSON_HEADERS,
+      payload: { username: 'alice', password: 'wrong-password' }
+    })
+    assert.equal(badLogin.statusCode, 401)
+
+    const login = await app.inject({
+      method: 'POST',
+      url: '/api/auth/login',
+      headers: JSON_HEADERS,
+      payload: { username: 'alice', password: 'secret123' }
+    })
+    assert.equal(login.statusCode, 200)
+    cookie = cookieHeader(login)
+
+    const meAgain = await app.inject({
+      method: 'GET',
+      url: '/api/auth/me',
+      headers: { cookie }
+    })
+    assert.equal(meAgain.statusCode, 200)
+
+    const duplicate = await app.inject({
+      method: 'POST',
+      url: '/api/auth/register',
+      headers: JSON_HEADERS,
+      payload: { username: 'alice', password: 'secret123' }
+    })
+    assert.equal(duplicate.statusCode, 409)
+  } finally {
+    await app.close()
+  }
+})
+
+test('upload without auth is rejected with 401', async () => {
+  const app = await buildServer()
+  try {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/videos',
+      headers: { 'content-type': `multipart/form-data; boundary=${BOUNDARY}` },
+      payload: buildMultipart({
+        title: 'Anonymous',
+        filename: 'anon.mp4',
+        contentType: 'video/mp4',
+        content: mp4Bytes
+      })
+    })
+    assert.equal(res.statusCode, 401)
+  } finally {
+    await app.close()
+  }
+})
+
 test('full upload, list, stream, view, and delete lifecycle', async () => {
   const app = await buildServer()
   try {
+    const cookie = await registerUser(app, 'creator')
+
     const empty = await app.inject({ method: 'GET', url: '/api/videos' })
     assert.equal(empty.statusCode, 200)
-    assert.deepEqual(empty.json().data, [])
+    const beforeIds = empty.json().data.map((v) => v.id)
 
     const upload = await app.inject({
       method: 'POST',
       url: '/api/videos',
-      headers: { 'content-type': `multipart/form-data; boundary=${BOUNDARY}` },
+      headers: {
+        'content-type': `multipart/form-data; boundary=${BOUNDARY}`,
+        cookie
+      },
       payload: buildMultipart({
         title: 'Demo clip',
         description: 'Integration test',
@@ -80,7 +194,8 @@ test('full upload, list, stream, view, and delete lifecycle', async () => {
     assert.equal(created.views, 0)
 
     const list = await app.inject({ method: 'GET', url: '/api/videos' })
-    assert.equal(list.json().data.length, 1)
+    const listIds = list.json().data.map((v) => v.id)
+    assert.ok(listIds.includes(created.id))
 
     const full = await app.inject({ method: 'GET', url: `/api/videos/${created.id}/stream` })
     assert.equal(full.statusCode, 200)
@@ -99,11 +214,17 @@ test('full upload, list, stream, view, and delete lifecycle', async () => {
     const view = await app.inject({ method: 'POST', url: `/api/videos/${created.id}/view` })
     assert.equal(view.json().data.views, 1)
 
-    const del = await app.inject({ method: 'DELETE', url: `/api/videos/${created.id}` })
+    const del = await app.inject({
+      method: 'DELETE',
+      url: `/api/videos/${created.id}`,
+      headers: { cookie }
+    })
     assert.equal(del.statusCode, 200)
 
     const after = await app.inject({ method: 'GET', url: '/api/videos' })
-    assert.deepEqual(after.json().data, [])
+    const afterIds = after.json().data.map((v) => v.id)
+    assert.ok(!afterIds.includes(created.id))
+    assert.deepEqual(afterIds, beforeIds)
   } finally {
     await app.close()
   }
@@ -112,10 +233,14 @@ test('full upload, list, stream, view, and delete lifecycle', async () => {
 test('rejects non-video uploads', async () => {
   const app = await buildServer()
   try {
+    const cookie = await registerUser(app, 'notvideo')
     const res = await app.inject({
       method: 'POST',
       url: '/api/videos',
-      headers: { 'content-type': `multipart/form-data; boundary=${BOUNDARY}` },
+      headers: {
+        'content-type': `multipart/form-data; boundary=${BOUNDARY}`,
+        cookie
+      },
       payload: buildMultipart({
         title: 'note',
         filename: 'note.txt',

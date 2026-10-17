@@ -377,6 +377,52 @@ a {
   cursor: not-allowed;
 }
 
+.btn.small {
+  padding: 6px 12px;
+  font-size: 12px;
+}
+
+.account {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.account-name {
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.auth {
+  max-width: 420px;
+  margin: 24px auto 0;
+}
+
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin: 20px 0;
+}
+
+.field input[type="password"],
+.field input[type="email"] {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px;
+  color: var(--text);
+  font: inherit;
+}
+
+.field input[type="password"]:focus,
+.field input[type="email"]:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+
 @media (max-width: 600px) {
   .content {
     padding: 16px 12px 40px;

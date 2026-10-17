@@ -1,10 +1,13 @@
-import { useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useEffect, useRef, useState } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { uploadVideo } from '../api.js'
 import { formatBytes } from '../utils.js'
+import { useAuth } from '../AuthContext.jsx'
 
 export default function Upload() {
   const navigate = useNavigate()
+  const location = useLocation()
+  const { user, status } = useAuth()
   const [file, setFile] = useState(null)
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
@@ -12,6 +15,17 @@ export default function Upload() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const inputRef = useRef(null)
+
+  useEffect(() => {
+    if (status === 'ready' && !user) {
+      navigate('/login', { replace: true, state: { from: location.pathname } })
+    }
+  }, [status, user, navigate, location.pathname])
+
+  if (status === 'loading') {
+    return <p className="state">Đang kiểm tra đăng nhập…</p>
+  }
+  if (!user) return null
 
   function onFileChange(e) {
     const selected = e.target.files?.[0] || null

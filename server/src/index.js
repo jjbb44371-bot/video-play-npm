@@ -1,19 +1,42 @@
 import Fastify from 'fastify'
 import cors from '@fastify/cors'
+import cookie from '@fastify/cookie'
+import session from '@fastify/session'
 import multipart from '@fastify/multipart'
 import fastifyStatic from '@fastify/static'
 import { existsSync } from 'node:fs'
 import { config } from './config.js'
 import { ensureStorage } from './store.js'
 import videoRoutes from './routes/videos.js'
+import authRoutes from './routes/auth.js'
+import commentRoutes from './routes/comments.js'
+import likeRoutes from './routes/likes.js'
+import tagRoutes from './routes/tags.js'
+import playlistRoutes from './routes/playlists.js'
+import categoryRoutes from './routes/categories.js'
 
 export async function buildServer() {
+  await ensureStorage()
   const fastify = Fastify({
     logger: true,
     bodyLimit: config.maxUploadBytes
   })
 
   await fastify.register(cors, { origin: true })
+  await fastify.register(cookie)
+  await fastify.register(session, {
+    secret: config.auth.sessionSecret,
+    cookieName: config.auth.cookieName,
+    cookie: {
+      path: '/',
+      httpOnly: true,
+      secure: config.auth.cookieSecure,
+      sameSite: 'lax',
+      maxAge: config.auth.sessionMaxAge
+    },
+    saveUninitialized: false,
+    rolling: true
+  })
   await fastify.register(multipart, {
     limits: {
       fileSize: config.maxUploadBytes,
@@ -27,7 +50,13 @@ export async function buildServer() {
     time: new Date().toISOString()
   }))
 
+  await fastify.register(authRoutes)
   await fastify.register(videoRoutes)
+  await fastify.register(categoryRoutes)
+  await fastify.register(tagRoutes)
+  await fastify.register(commentRoutes)
+  await fastify.register(likeRoutes)
+  await fastify.register(playlistRoutes)
 
   if (existsSync(config.clientDist)) {
     await fastify.register(fastifyStatic, {

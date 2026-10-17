@@ -15,6 +15,41 @@ async function handle(res) {
   return body
 }
 
+export async function register({ username, email, password }) {
+  const res = await fetch('/api/auth/register', {
+    method: 'POST',
+    headers: JSON_HEADERS,
+    body: JSON.stringify({ username, email, password })
+  })
+  const body = await handle(res)
+  return body?.data ?? null
+}
+
+export async function login({ username, password }) {
+  const res = await fetch('/api/auth/login', {
+    method: 'POST',
+    headers: JSON_HEADERS,
+    body: JSON.stringify({ username, password })
+  })
+  const body = await handle(res)
+  return body?.data ?? null
+}
+
+export async function logout() {
+  const res = await fetch('/api/auth/logout', {
+    method: 'POST',
+    headers: JSON_HEADERS
+  })
+  await handle(res)
+}
+
+export async function getMe() {
+  const res = await fetch('/api/auth/me')
+  if (res.status === 401) return null
+  const body = await handle(res)
+  return body?.data ?? null
+}
+
 export async function listVideos() {
   const res = await fetch('/api/videos')
   const body = await handle(res)

@@ -1,6 +1,6 @@
 {
   "name": "video-play-npm",
-  "version": "0.1.0",
+  "version": "0.3.0",
   "private": true,
   "description": "Full-stack, server-authoritative video streaming app (like YouTube). Fastify backend + React/Vite frontend.",
   "workspaces": [

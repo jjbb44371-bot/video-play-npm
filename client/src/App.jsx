@@ -2,6 +2,33 @@ import { Link, NavLink, Route, Routes } from 'react-router-dom'
 import Home from './pages/Home.jsx'
 import Watch from './pages/Watch.jsx'
 import Upload from './pages/Upload.jsx'
+import Login from './pages/Login.jsx'
+import Register from './pages/Register.jsx'
+import { useAuth } from './AuthContext.jsx'
+
+function AccountNav() {
+  const { user, status, logout } = useAuth()
+
+  if (status === 'loading') return null
+
+  if (!user) {
+    return (
+      <>
+        <NavLink to="/login">Đăng nhập</NavLink>
+        <NavLink to="/register">Đăng ký</NavLink>
+      </>
+    )
+  }
+
+  return (
+    <span className="account">
+      <span className="account-name">@{user.username}</span>
+      <button type="button" className="btn small" onClick={() => logout()}>
+        Đăng xuất
+      </button>
+    </span>
+  )
+}
 
 export default function App() {
   return (
@@ -16,6 +43,7 @@ export default function App() {
             Trang chủ
           </NavLink>
           <NavLink to="/upload">Tải lên</NavLink>
+          <AccountNav />
         </nav>
       </header>
 
@@ -24,6 +52,8 @@ export default function App() {
           <Route path="/" element={<Home />} />
           <Route path="/watch/:id" element={<Watch />} />
           <Route path="/upload" element={<Upload />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
         </Routes>
       </main>
 
