@@ -47,9 +47,10 @@ Read it before a version bump or a documentation change.
    to `accepted` and record what was accepted. Do not touch code until the author agrees.
 3. **Implement** — make the approved changes, report progress as `NN% — <current task>`,
    and update the plan document status as work proceeds.
-4. **Compile and test** — delegate the build and tests to a subagent with a time budget
-   (e.g. 10 minutes). If it completes, use its result. If the budget expires, that is not
-   an error: continue to the next step. Skip per the applicability policy below.
+4. **Compile and test** — build and tests run on **GitHub Actions**
+   (`.github/workflows/ci.yml`), not locally. Push the work to trigger CI and wait for the
+   run within a time budget (e.g. 10 minutes). If the budget expires, that is not an
+   error: continue to the next step. Skip per the applicability policy below.
 5. **Clean up** — delete everything the test run created (temporary data, uploaded files,
    database rows or files, logs, generated artifacts) so leftovers cannot skew later test
    results.
@@ -112,8 +113,8 @@ Format `MAJOR.MINOR.PATCH`, each segment a single digit `0`–`9`.
 - Code, or advanced configuration that can affect behavior/runtime → **required**.
 - Documentation only, or basic configuration → **skip**.
 - When unsure, treat it as required.
-- Run build/test through a subagent with a time budget (e.g. 10 minutes). Exceeding the
-  budget is not an error: move to the next step.
+- Build and tests run on GitHub Actions (`.github/workflows/ci.yml`) with a time budget
+  (e.g. 10 minutes). Exceeding the budget is not an error: move to the next step.
 - Whenever tests run, they must be followed by cleanup (step 5).
 
 ---
@@ -147,8 +148,8 @@ English only, exhaustive, and identical in the changelog and the release body.
 1. No implementation, version bump, or release without the plan being approved.
 2. Always start with the plan.
 3. Never skip required compile/test.
-4. Delegate build/test to a subagent with a time budget; when the budget expires, move on
-   to the next step instead of halting or reporting an error.
+4. Compile and test on GitHub Actions (`.github/workflows/ci.yml`) with a time budget; when
+   the budget expires, move on to the next step instead of halting or reporting an error.
 5. After testing, always clean up the artifacts the test run created.
 6. Confirm the target repository before every push and release. If it does not match,
    find out why and fix it before proceeding; never act on a repo that is not
