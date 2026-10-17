@@ -5,8 +5,6 @@
 Ứng dụng xem video full-stack (kiểu YouTube), kiến trúc **server-authoritative**: mọi quyền
 xử lý và dữ liệu nằm ở máy chủ, máy khách (trình duyệt) chỉ hiển thị những gì server trả về.
 
-**Bản chạy thật:** https://video-play-npm.onrender.com
-
 ## Kiến trúc
 
 - **server/** — backend [Fastify](https://fastify.dev/)
@@ -52,21 +50,6 @@ npm start          # Fastify phục vụ API + client/dist
 ```
 
 Sau đó mở http://localhost:4000
-
-## Triển khai trên Render
-
-Blueprint Render ([`render.yaml`](./render.yaml)) định nghĩa một web service Node miễn phí
-tên `video-play-npm`, build từ nhánh `main`:
-
-- Lệnh build: `npm install && npm run build`
-- Lệnh start: `npm start`
-- Health check: `/api/health`
-
-Bản chạy thật: **https://video-play-npm.onrender.com**
-
-Ở gói miễn phí, ổ đĩa là tạm thời nên video đã upload và metadata sẽ mất sau mỗi lần
-deploy hoặc khởi động lại. Muốn lưu bền cần gói trả phí kèm persistent disk mount tại
-`/var/data` và đặt `UPLOADS_DIR=/var/data/uploads`, `DATA_DIR=/var/data/data`.
 
 ## Kiểm thử
 

@@ -6,8 +6,6 @@ A full-stack video streaming app (YouTube-style) with a **server-authoritative**
 architecture: all processing and data live on the server, and the client (browser) only
 displays what the server returns.
 
-**Live deployment:** https://video-play-npm.onrender.com
-
 ## Architecture
 
 - **server/** — [Fastify](https://fastify.dev/) backend
@@ -53,21 +51,6 @@ npm start          # Fastify serves the API + client/dist
 ```
 
 Then open http://localhost:4000
-
-## Deploy on Render
-
-A Render blueprint ([`render.yaml`](./render.yaml)) defines a free Node web service named
-`video-play-npm`, built from `main`:
-
-- Build command: `npm install && npm run build`
-- Start command: `npm start`
-- Health check: `/api/health`
-
-Live deployment: **https://video-play-npm.onrender.com**
-
-On the free plan the filesystem is ephemeral, so uploaded videos and metadata reset on
-each deploy or restart. Persistence needs a paid instance with a persistent disk mounted
-at `/var/data` and `UPLOADS_DIR=/var/data/uploads`, `DATA_DIR=/var/data/data`.
 
 ## Test
 

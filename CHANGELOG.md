@@ -8,25 +8,6 @@ versioning policy in `AGENTS.md`. Versions use the release stages `alpha`, `beta
 
 ## [Unreleased]
 
-## [0.2.0] - 2026-10-17
-
-### Added
-
-- Render deployment configuration (`render.yaml`): a Node web service named
-  `video-play-npm`, built from the `main` branch with build command
-  `npm install && npm run build`, start command `npm start`, and health check
-  `/api/health`.
-- `engines.node` (`24.x`) pinned in the root, `server`, and `client` package manifests so
-  Render selects a compatible Node version.
-- `docs/plan-1.md` recording the Render deployment plan.
-- `AGENTS.md` "Deployment (Render)" workflow section.
-- Live deployment at **https://video-play-npm.onrender.com** (`srv-db9fb3ijnfac73c37n3g`),
-  documented in `README.md` and `README.vi.md`.
-
-### Changed
-
-- Version bumped to `0.2.0` across `project.config.json` and all package manifests.
-
 ## [0.1.0] - 2026-10-17
 
 ### Added

@@ -120,19 +120,6 @@ Format `MAJOR.MINOR.PATCH`, each segment a single digit `0`–`9`.
 
 ---
 
-## Deployment (Render)
-
-- The app deploys as a Render web service, defined by `render.yaml` and built from `main`.
-- Read the Render API docs before using the Render CLI or API.
-- Deploy only after the code is pushed, and create or update the service first.
-- Record the live service URL in the docs. If every configured language already contains
-  the URL, leave it; otherwise add it, and push the documentation update separately from
-  the code.
-- Keep the source compatible with Render: bind `PORT`/`0.0.0.0`, pin the Node version, and
-  account for the ephemeral filesystem on free instances.
-
----
-
 ## Release notes and changelog
 
 English only, exhaustive, and identical in the changelog and the release body.
