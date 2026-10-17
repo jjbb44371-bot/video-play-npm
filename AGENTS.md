@@ -45,8 +45,9 @@ Read it before a version bump or a documentation change.
    (see Plan documents).
 2. **Author review** — present the plan and stop. On acceptance, update the plan document
    to `accepted` and record what was accepted. Do not touch code until the author agrees.
-3. **Implement** — make the approved changes, report progress as `NN% — <current task>`,
-   and update the plan document status as work proceeds.
+3. **Implement** — split the work across subagents (one agent per part) instead of a single
+   agent writing everything. Report progress as `NN% — <current task>` and update the plan
+   document status as work proceeds.
 4. **Compile and test** — build and tests run on **GitHub Actions**
    (`.github/workflows/ci.yml`), not locally. Push the work to trigger CI and wait for the
    run within a time budget (e.g. 10 minutes). If the budget expires, that is not an
@@ -160,3 +161,5 @@ English only, exhaustive, and identical in the changelog and the release body.
 10. Release notes are English-only and exhaustive; a release must contain its content.
 11. Written artifacts (plan documents, code, commits, changelog, AGENTS.md) stay in
     English; talk to the author in the author's own language.
+12. Split implementation across subagents (one agent per part) instead of writing
+    everything in a single agent.
