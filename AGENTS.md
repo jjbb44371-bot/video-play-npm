@@ -57,12 +57,14 @@ Read it before a version bump or a documentation change.
 7. **Commit** — commit in batches: each logical step is its own commit, not one giant
    commit. Subject: `<type>(<area>): <summary> (v<version>)`. The body must list every
    change in detail, in English.
-8. **Push** — verify the remote matches the repository above, then push the batches. CI
-   runs on push, so nothing builds or tests until this step.
-9. **Compile and test** — build and tests run on **GitHub Actions**
-   (`.github/workflows/ci.yml`), not locally. Wait for the run within a time budget (e.g.
-   10 minutes). If the budget expires, that is not an error: continue to the next step.
-   Skip per the applicability policy below.
+8. **Push** — verify the remote matches the repository above, then push the batches. The
+   pushed code is what CI builds.
+9. **Compile and test** — CI does **not** run on its own. After pushing, trigger the
+   workflow **manually** (`workflow_dispatch` via the GitHub CLI/API), then check the runs:
+   find the **newest** run, select it, and poll its status every 30 seconds using a timer.
+   If it reports success, continue to the next step. If it reports failure, find the cause,
+   fix it, and trigger again — repeating this process within the time budget. Skip per the
+   applicability policy below.
 10. **Clean up** — delete everything a local test run created (temporary data, uploaded
     files, database rows or files, logs, generated artifacts) so leftovers cannot skew
     later test results.
@@ -114,9 +116,9 @@ Format `MAJOR.MINOR.PATCH`, each segment a single digit `0`–`9`.
 - Code, or advanced configuration that can affect behavior/runtime → **required**.
 - Documentation only, or basic configuration → **skip**.
 - When unsure, treat it as required.
-- Build and tests run on GitHub Actions (`.github/workflows/ci.yml`) with a time budget
-  (e.g. 10 minutes). Exceeding the budget is not an error: move to the next step.
-- Whenever tests run, they must be followed by cleanup (step 5).
+- Build and tests run on GitHub Actions (`.github/workflows/ci.yml`), triggered manually
+  after pushing, then polled every 30 seconds within a time budget.
+- Whenever tests run, they must be followed by cleanup (step 10).
 
 ---
 
@@ -149,9 +151,8 @@ English only, exhaustive, and identical in the changelog and the release body.
 1. No implementation, version bump, or release without the plan being approved.
 2. Always start with the plan.
 3. Never skip required compile/test.
-4. Compile and test on GitHub Actions (`.github/workflows/ci.yml`) only after pushing,
-   within a time budget; when the budget expires, move on to the next step instead of
-   halting or reporting an error.
+4. Trigger CI manually after pushing (it does not run on its own), check the newest run,
+   and poll it every 30 seconds: on success continue; on failure fix and re-trigger.
 5. After testing, always clean up the artifacts the test run created.
 6. Confirm the target repository before every push and release. If it does not match,
    find out why and fix it before proceeding; never act on a repo that is not
