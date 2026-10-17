@@ -49,18 +49,21 @@ Read it before a version bump or a documentation change.
    and update the plan document status as work proceeds.
 4. **Compile and test** — build and run the tests until clean. Skip per the applicability
    policy below.
-5. **Version bump** — update `version` in `project.config.json` using the versioning
+5. **Clean up** — delete everything the test run created (temporary data, uploaded files,
+   database rows or files, logs, generated artifacts) so leftovers cannot skew later test
+   results.
+6. **Version bump** — update `version` in `project.config.json` using the versioning
    policy and the approved stage; keep every `package.json` version in sync.
-6. **Documentation** — update docs in every configured language and keep them
+7. **Documentation** — update docs in every configured language and keep them
    cross-linked; create docs for any newly configured language.
-7. **Release notes** — write English-only notes listing every change and every fix
+8. **Release notes** — write English-only notes listing every change and every fix
    exhaustively; content is required; prepend them to the changelog.
-8. **Commit** — commit in batches: each logical step is its own commit, not one giant
+9. **Commit** — commit in batches: each logical step is its own commit, not one giant
    commit. Subject: `<type>(<area>): <summary> (v<version>)`. The body must list every
    change in detail, in English.
-9. **Push** — verify the remote matches the repository above, then push the batches before
-   releasing.
-10. **Publish the release** — verify the remote again, then tag the version and push the
+10. **Push** — verify the remote matches the repository above, then push the batches before
+    releasing.
+11. **Publish the release** — verify the remote again, then tag the version and push the
     tag, and publish the release with the same English notes as the changelog. Mark it a
     pre-release unless the stage is `stable`.
 
@@ -108,6 +111,7 @@ Format `MAJOR.MINOR.PATCH`, each segment a single digit `0`–`9`.
 - Code, or advanced configuration that can affect behavior/runtime → **required**.
 - Documentation only, or basic configuration → **skip**.
 - When unsure, treat it as required.
+- Whenever tests run, they must be followed by cleanup (step 5).
 
 ---
 
@@ -140,12 +144,13 @@ English only, exhaustive, and identical in the changelog and the release body.
 1. No implementation, version bump, or release without the plan being approved.
 2. Always start with the plan.
 3. Never skip required compile/test.
-4. Confirm the target repository before every push and release. If it does not match,
+4. After testing, always clean up the artifacts the test run created.
+5. Confirm the target repository before every push and release. If it does not match,
    find out why and fix it before proceeding; never act on a repo that is not
    `video-play-npm`.
-5. Commit before pushing; push before releasing.
-6. Every release declares a stage and uses the matching version suffix.
-7. Commit messages are English-only and list every change in detail.
-8. Release notes are English-only and exhaustive; a release must contain its content.
-9. Written artifacts (plan documents, code, commits, changelog, AGENTS.md) stay in
-   English; talk to the author in the author's own language.
+6. Commit before pushing; push before releasing.
+7. Every release declares a stage and uses the matching version suffix.
+8. Commit messages are English-only and list every change in detail.
+9. Release notes are English-only and exhaustive; a release must contain its content.
+10. Written artifacts (plan documents, code, commits, changelog, AGENTS.md) stay in
+    English; talk to the author in the author's own language.
