@@ -8,6 +8,37 @@ versioning policy in `AGENTS.md`. Versions use the release stages `alpha`, `beta
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-10-19
+
+### Added
+
+- **Pagination**
+  - `GET /api/videos` accepts `limit` (default `20`, max `100`) and `offset` (default `0`).
+    Invalid values return `400`. Responses now include `page: { limit, offset, count }`
+    alongside `data`.
+
+### Changed
+
+- **Database**
+  - Schema migration `v3`: composite index `idx_videos_createdAt_id` on
+    `videos(createdAt DESC, id DESC)` and trigger `trg_videos_views_au` that mirrors
+    `videos.views` into `video_metrics` after view updates.
+  - `listVideos`, `getVideosByUser`, `listComments`, `listPlaylists`, and
+    `listPlaylistItems` now order by raw date columns instead of `datetime(...)`, so the
+    new index is used.
+  - `incrementViews` is a single `UPDATE ... RETURNING` statement (no follow-up `SELECT`).
+  - Write lock narrowed to genuinely multi-step writes; single-statement writes run lock-free.
+- **Uploads**
+  - Upload handler now parses parts with `req.parts()` and streams the file to a `.part`
+    file before renaming, so fields sent after the file (e.g. `title`) are still honored.
+  - Magic-byte validation (ISO-BMFF `ftyp`, Matroska/WebM EBML, Ogg) rejects spoofed
+    `video/*` uploads with `415`.
+  - Per-route `bodyLimit` set to `maxUploadBytes`; the global limit is lowered to `1 MiB`.
+
+### Fixed
+
+- Leftover `*.part` files in the uploads directory are removed on startup.
+
 ## [0.3.0] - 2026-10-17
 
 ### Added

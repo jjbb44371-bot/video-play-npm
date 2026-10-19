@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { mkdtemp, mkdir, rm } from 'node:fs/promises'
+import { mkdtemp, mkdir, rm, writeFile, stat } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -9,16 +9,27 @@ const testBase = path.join(here, '..', '.tmp-test')
 await mkdir(testBase, { recursive: true })
 const tmp = await mkdtemp(path.join(testBase, path.sep)) // eslint-disable-line
 
+const uploadsDir = path.join(tmp, 'uploads')
 process.env.DATA_DIR = path.join(tmp, 'data')
-process.env.UPLOADS_DIR = path.join(tmp, 'uploads')
+process.env.UPLOADS_DIR = uploadsDir
 process.env.CLIENT_DIST = path.join(tmp, 'no-client')
 
 const { buildServer } = await import('../src/index.js')
+const { createVideo, ensureVideoMetrics, getVideoMetrics } = await import(
+  '../src/store.js'
+)
 
 const BOUNDARY = '----videoPlayNpmBoundary'
 const JSON_HEADERS = { 'content-type': 'application/json' }
 
-function buildMultipart({ title, description, filename, contentType, content }) {
+function buildMultipart({
+  title,
+  description,
+  filename,
+  contentType,
+  content,
+  fileFirst = false
+}) {
   const chunks = []
   const field = (name, value) =>
     chunks.push(
@@ -26,16 +37,19 @@ function buildMultipart({ title, description, filename, contentType, content }) 
         `--${BOUNDARY}\r\nContent-Disposition: form-data; name="${name}"\r\n\r\n${value}\r\n`
       )
     )
-  if (title !== undefined) field('title', title)
-  if (description !== undefined) field('description', description)
-  chunks.push(
+  const filePart = [
     Buffer.from(
       `--${BOUNDARY}\r\nContent-Disposition: form-data; name="file"; filename="${filename}"\r\n` +
         `Content-Type: ${contentType}\r\n\r\n`
-    )
-  )
-  chunks.push(Buffer.from(content))
-  chunks.push(Buffer.from(`\r\n--${BOUNDARY}--\r\n`))
+    ),
+    Buffer.from(content),
+    Buffer.from('\r\n')
+  ]
+  if (fileFirst) chunks.push(...filePart)
+  if (title !== undefined) field('title', title)
+  if (description !== undefined) field('description', description)
+  if (!fileFirst) chunks.push(...filePart)
+  chunks.push(Buffer.from(`--${BOUNDARY}--\r\n`))
   return Buffer.concat(chunks)
 }
 
@@ -54,7 +68,14 @@ async function registerUser(app, username = 'tester', password = 'secret123') {
   return cookieHeader(res)
 }
 
-const mp4Bytes = Buffer.alloc(4096, 7)
+function makeMp4(size = 4096) {
+  const buf = Buffer.alloc(size, 7)
+  buf.write('ftyp', 4, 'ascii')
+  buf.write('isom', 8, 'ascii')
+  return buf
+}
+
+const mp4Bytes = makeMp4()
 
 test('health check responds ok', async () => {
   const app = await buildServer()
@@ -250,6 +271,141 @@ test('rejects non-video uploads', async () => {
     })
     assert.equal(res.statusCode, 415)
     assert.equal(res.json().error, 'Chỉ chấp nhận file video')
+  } finally {
+    await app.close()
+  }
+})
+
+test('rejects spoofed video mime without valid magic bytes', async () => {
+  const app = await buildServer()
+  try {
+    const cookie = await registerUser(app, 'spoofed')
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/videos',
+      headers: {
+        'content-type': `multipart/form-data; boundary=${BOUNDARY}`,
+        cookie
+      },
+      payload: buildMultipart({
+        title: 'fake',
+        filename: 'fake.mp4',
+        contentType: 'video/mp4',
+        content: Buffer.alloc(4096, 7)
+      })
+    })
+    assert.equal(res.statusCode, 415)
+    assert.equal(res.json().error, 'Chỉ chấp nhận file video')
+  } finally {
+    await app.close()
+  }
+})
+
+test('keeps title when the field part is sent after the file part', async () => {
+  const app = await buildServer()
+  try {
+    const cookie = await registerUser(app, 'afterfile')
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/videos',
+      headers: {
+        'content-type': `multipart/form-data; boundary=${BOUNDARY}`,
+        cookie
+      },
+      payload: buildMultipart({
+        title: 'Title after file',
+        description: 'ordered late',
+        filename: 'late.mp4',
+        contentType: 'video/mp4',
+        content: mp4Bytes,
+        fileFirst: true
+      })
+    })
+    assert.equal(res.statusCode, 201)
+    assert.equal(res.json().data.title, 'Title after file')
+  } finally {
+    await app.close()
+  }
+})
+
+test('paginates video list with a total count and rejects bad params', async () => {
+  const app = await buildServer()
+  try {
+    const before = (await app.inject({ method: 'GET', url: '/api/videos' })).json()
+    assert.equal(before.page.limit, 20)
+    assert.equal(before.page.offset, 0)
+
+    for (let i = 0; i < 25; i += 1) {
+      await createVideo({
+        title: `seed-${i}`,
+        filename: `seed-${i}.mp4`,
+        originalName: `seed-${i}.mp4`,
+        mimeType: 'video/mp4',
+        size: 10
+      })
+    }
+
+    const first = (await app.inject({ method: 'GET', url: '/api/videos' })).json()
+    assert.equal(first.page.count, before.page.count + 25)
+    assert.equal(first.data.length, 20)
+
+    for (let i = 1; i < first.data.length; i += 1) {
+      assert.ok(
+        first.data[i - 1].createdAt >= first.data[i].createdAt,
+        'results must be ordered newest first'
+      )
+    }
+
+    const page2 = (
+      await app.inject({ method: 'GET', url: '/api/videos?limit=5&offset=20' })
+    ).json()
+    assert.equal(page2.data.length, 5)
+    assert.equal(page2.page.limit, 5)
+    assert.equal(page2.page.offset, 20)
+
+    for (const bad of ['limit=0', 'limit=101', 'limit=abc', 'offset=-1', 'offset=x']) {
+      const res = await app.inject({ method: 'GET', url: `/api/videos?${bad}` })
+      assert.equal(res.statusCode, 400, `${bad} must be rejected`)
+    }
+  } finally {
+    await app.close()
+  }
+})
+
+test('view increments are mirrored into video_metrics when the row exists', async () => {
+  const app = await buildServer()
+  try {
+    const video = await createVideo({
+      title: 'metrics-video',
+      filename: 'metrics-video.mp4',
+      originalName: 'metrics-video.mp4',
+      mimeType: 'video/mp4',
+      size: 10
+    })
+    await ensureVideoMetrics(video.id)
+
+    const view = await app.inject({
+      method: 'POST',
+      url: `/api/videos/${video.id}/view`
+    })
+    assert.equal(view.statusCode, 200)
+    assert.equal(view.json().data.views, 1)
+
+    const metrics = await getVideoMetrics(video.id)
+    assert.equal(metrics.views, 1)
+  } finally {
+    await app.close()
+  }
+})
+
+test('startup removes leftover partial upload files', async () => {
+  await mkdir(uploadsDir, { recursive: true })
+  const orphan = path.join(uploadsDir, 'orphan.part')
+  await writeFile(orphan, 'partial')
+
+  const app = await buildServer()
+  try {
+    await assert.rejects(stat(orphan), 'orphan .part file should be removed')
   } finally {
     await app.close()
   }

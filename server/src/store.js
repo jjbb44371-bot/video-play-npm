@@ -20,6 +20,31 @@ async function ensureStorage() {
   await fs.mkdir(config.uploadsDir, { recursive: true })
   await fs.mkdir(config.dataDir, { recursive: true })
   getDb()
+  await cleanupPartialUploads()
+}
+
+async function cleanupPartialUploads() {
+  let entries
+  try {
+    entries = await fs.readdir(config.uploadsDir)
+  } catch {
+    return
+  }
+  const partials = entries.filter((name) => name.endsWith('.part'))
+  await Promise.all(
+    partials.map((name) => fs.rm(path.join(config.uploadsDir, name), { force: true }))
+  )
+}
+
+const DEFAULT_PAGE_LIMIT = 20
+const MAX_PAGE_LIMIT = 100
+
+function normalizePage({ limit, offset } = {}) {
+  const safeLimit = Number.isInteger(limit)
+    ? Math.min(Math.max(limit, 1), MAX_PAGE_LIMIT)
+    : DEFAULT_PAGE_LIMIT
+  const safeOffset = Number.isInteger(offset) && offset > 0 ? offset : 0
+  return { limit: safeLimit, offset: safeOffset }
 }
 
 function newId() {
@@ -52,16 +77,14 @@ async function createUser({ username, email, passwordPlain, role = 'user' }) {
     throw new Error('passwordPlain is required')
   }
   const passwordHash = await hashPassword(passwordPlain)
-  return withLock(() => {
-    const db = getDb()
-    const id = newId()
-    const ts = now()
-    db.prepare(
-      `INSERT INTO users (id, username, email, password_hash, role, createdAt, updatedAt)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`
-    ).run(id, username, email ?? null, passwordHash, role, ts, ts)
-    return toSafeUser(db.prepare(`SELECT * FROM users WHERE id = ?`).get(id))
-  })
+  const db = getDb()
+  const id = newId()
+  const ts = now()
+  db.prepare(
+    `INSERT INTO users (id, username, email, password_hash, role, createdAt, updatedAt)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`
+  ).run(id, username, email ?? null, passwordHash, role, ts, ts)
+  return toSafeUser(db.prepare(`SELECT * FROM users WHERE id = ?`).get(id))
 }
 
 async function findUserByUsername(username) {
@@ -100,50 +123,67 @@ async function updateUserPassword(id, passwordPlain) {
     throw new Error('passwordPlain is required')
   }
   const passwordHash = await hashPassword(passwordPlain)
-  return withLock(() => {
-    const db = getDb()
-    const info = db
-      .prepare(
-        `UPDATE users SET password_hash = ?, updatedAt = ? WHERE id = ?`
-      )
-      .run(passwordHash, now(), id)
-    if (info.changes === 0) return null
-    return toSafeUser(db.prepare(`SELECT * FROM users WHERE id = ?`).get(id))
-  })
+  const db = getDb()
+  const info = db
+    .prepare(
+      `UPDATE users SET password_hash = ?, updatedAt = ? WHERE id = ?`
+    )
+    .run(passwordHash, now(), id)
+  if (info.changes === 0) return null
+  return toSafeUser(db.prepare(`SELECT * FROM users WHERE id = ?`).get(id))
 }
 
 /* ------------------------------ Videos ---------------------------------- */
 
-async function listVideos() {
+const VIDEO_COLUMNS =
+  `id, title, description, filename, originalName, mimeType, size, views, userId, createdAt`
+
+async function listVideos(page) {
+  const { limit, offset } = normalizePage(page)
   const db = getDb()
-  const rows = db
+  return db
     .prepare(
-      `SELECT id, title, description, filename, originalName, mimeType, size, views, userId, createdAt
+      `SELECT ${VIDEO_COLUMNS}
        FROM videos
-       ORDER BY datetime(createdAt) DESC, id DESC`
+       ORDER BY createdAt DESC, id DESC
+       LIMIT ? OFFSET ?`
     )
-    .all()
-  return rows
+    .all(limit, offset)
 }
 
-async function getVideosByUser(userId) {
+async function countVideos() {
   const db = getDb()
-  const rows = db
+  const row = db.prepare(`SELECT COUNT(*) AS count FROM videos`).get()
+  return row ? Number(row.count) : 0
+}
+
+async function getVideosByUser(userId, page) {
+  const { limit, offset } = normalizePage(page)
+  const db = getDb()
+  return db
     .prepare(
-      `SELECT id, title, description, filename, originalName, mimeType, size, views, userId, createdAt
+      `SELECT ${VIDEO_COLUMNS}
        FROM videos
        WHERE userId = ?
-       ORDER BY datetime(createdAt) DESC, id DESC`
+       ORDER BY createdAt DESC, id DESC
+       LIMIT ? OFFSET ?`
     )
-    .all(userId)
-  return rows
+    .all(userId, limit, offset)
+}
+
+async function countVideosByUser(userId) {
+  const db = getDb()
+  const row = db
+    .prepare(`SELECT COUNT(*) AS count FROM videos WHERE userId = ?`)
+    .get(userId)
+  return row ? Number(row.count) : 0
 }
 
 async function getVideo(id) {
   const db = getDb()
   const row = db
     .prepare(
-      `SELECT id, title, description, filename, originalName, mimeType, size, views, userId, createdAt
+      `SELECT ${VIDEO_COLUMNS}
        FROM videos
        WHERE id = ?`
     )
@@ -195,14 +235,14 @@ async function createVideo(data) {
 }
 
 async function incrementViews(id) {
-  return withLock(async () => {
-    const db = getDb()
-    const info = db
-      .prepare(`UPDATE videos SET views = COALESCE(views, 0) + 1 WHERE id = ?`)
-      .run(id)
-    if (info.changes === 0) return null
-    return getVideo(id)
-  })
+  const db = getDb()
+  const row = db
+    .prepare(
+      `UPDATE videos SET views = COALESCE(views, 0) + 1 WHERE id = ?
+       RETURNING ${VIDEO_COLUMNS}`
+    )
+    .get(id)
+  return row || null
 }
 
 async function removeVideo(id) {
@@ -250,15 +290,13 @@ async function getCategory(id) {
 }
 
 async function createCategory({ name, slug, description = '' }) {
-  return withLock(() => {
-    const db = getDb()
-    const id = newId()
-    db.prepare(
-      `INSERT INTO categories (id, name, slug, description, createdAt)
-       VALUES (?, ?, ?, ?, ?)`
-    ).run(id, name, slug, description, now())
-    return db.prepare(`SELECT * FROM categories WHERE id = ?`).get(id)
-  })
+  const db = getDb()
+  const id = newId()
+  db.prepare(
+    `INSERT INTO categories (id, name, slug, description, createdAt)
+     VALUES (?, ?, ?, ?, ?)`
+  ).run(id, name, slug, description, now())
+  return db.prepare(`SELECT * FROM categories WHERE id = ?`).get(id)
 }
 
 /* -------------------------------- Tags ---------------------------------- */
@@ -279,16 +317,14 @@ async function findTagByName(name) {
 }
 
 async function createTag({ name }) {
-  return withLock(() => {
-    const db = getDb()
-    const id = newId()
-    db.prepare(`INSERT INTO tags (id, name, createdAt) VALUES (?, ?, ?)`).run(
-      id,
-      name,
-      now()
-    )
-    return db.prepare(`SELECT * FROM tags WHERE id = ?`).get(id)
-  })
+  const db = getDb()
+  const id = newId()
+  db.prepare(`INSERT INTO tags (id, name, createdAt) VALUES (?, ?, ?)`).run(
+    id,
+    name,
+    now()
+  )
+  return db.prepare(`SELECT * FROM tags WHERE id = ?`).get(id)
 }
 
 async function getVideoTags(videoId) {
@@ -335,7 +371,7 @@ async function listComments(videoId) {
        FROM comments c
        LEFT JOIN users u ON u.id = c.userId
        WHERE c.videoId = ?
-       ORDER BY datetime(c.createdAt) ASC, c.id ASC`
+       ORDER BY c.createdAt ASC, c.id ASC`
     )
     .all(videoId)
 }
@@ -346,26 +382,22 @@ async function getComment(id) {
 }
 
 async function createComment({ videoId, userId, body, parentId = null }) {
-  return withLock(() => {
-    const db = getDb()
-    const id = newId()
-    const ts = now()
-    db.prepare(
-      `INSERT INTO comments (id, videoId, userId, parentId, body, createdAt, updatedAt)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`
-    ).run(id, videoId, userId, parentId, body, ts, ts)
-    return db.prepare(`SELECT * FROM comments WHERE id = ?`).get(id)
-  })
+  const db = getDb()
+  const id = newId()
+  const ts = now()
+  db.prepare(
+    `INSERT INTO comments (id, videoId, userId, parentId, body, createdAt, updatedAt)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`
+  ).run(id, videoId, userId, parentId, body, ts, ts)
+  return db.prepare(`SELECT * FROM comments WHERE id = ?`).get(id)
 }
 
 async function removeComment(id) {
-  return withLock(() => {
-    const db = getDb()
-    const existing = db.prepare(`SELECT * FROM comments WHERE id = ?`).get(id)
-    if (!existing) return null
-    db.prepare(`DELETE FROM comments WHERE id = ?`).run(id)
-    return existing
-  })
+  const db = getDb()
+  const existing = db.prepare(`SELECT * FROM comments WHERE id = ?`).get(id)
+  if (!existing) return null
+  db.prepare(`DELETE FROM comments WHERE id = ?`).run(id)
+  return existing
 }
 
 /* -------------------------------- Likes --------------------------------- */
@@ -387,28 +419,24 @@ async function getLike(videoId, userId) {
 }
 
 async function setLike({ videoId, userId, reaction = 'like' }) {
-  return withLock(() => {
-    const db = getDb()
-    const id = newId()
-    const ts = now()
-    db.prepare(
-      `INSERT INTO likes (id, videoId, userId, reaction, createdAt, updatedAt)
-       VALUES (?, ?, ?, ?, ?, ?)
-       ON CONFLICT(videoId, userId)
-       DO UPDATE SET reaction = excluded.reaction, updatedAt = excluded.updatedAt`
-    ).run(id, videoId, userId, reaction, ts, ts)
-    return getLike(videoId, userId)
-  })
+  const db = getDb()
+  const id = newId()
+  const ts = now()
+  db.prepare(
+    `INSERT INTO likes (id, videoId, userId, reaction, createdAt, updatedAt)
+     VALUES (?, ?, ?, ?, ?, ?)
+     ON CONFLICT(videoId, userId)
+     DO UPDATE SET reaction = excluded.reaction, updatedAt = excluded.updatedAt`
+  ).run(id, videoId, userId, reaction, ts, ts)
+  return getLike(videoId, userId)
 }
 
 async function removeLike(videoId, userId) {
-  return withLock(() => {
-    const db = getDb()
-    const info = db
-      .prepare(`DELETE FROM likes WHERE videoId = ? AND userId = ?`)
-      .run(videoId, userId)
-    return info.changes > 0
-  })
+  const db = getDb()
+  const info = db
+    .prepare(`DELETE FROM likes WHERE videoId = ? AND userId = ?`)
+    .run(videoId, userId)
+  return info.changes > 0
 }
 
 /* ------------------------------ Playlists ------------------------------- */
@@ -418,7 +446,7 @@ async function listPlaylists(userId) {
   return db
     .prepare(
       `SELECT * FROM playlists WHERE userId = ?
-       ORDER BY datetime(createdAt) DESC, id DESC`
+       ORDER BY createdAt DESC, id DESC`
     )
     .all(userId)
 }
@@ -434,37 +462,33 @@ async function createPlaylist({
   description = '',
   visibility = 'private'
 }) {
-  return withLock(() => {
-    const db = getDb()
-    const id = newId()
-    const ts = now()
-    db.prepare(
-      `INSERT INTO playlists (id, userId, name, description, visibility, createdAt, updatedAt)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`
-    ).run(id, userId, name, description, visibility, ts, ts)
-    return db.prepare(`SELECT * FROM playlists WHERE id = ?`).get(id)
-  })
+  const db = getDb()
+  const id = newId()
+  const ts = now()
+  db.prepare(
+    `INSERT INTO playlists (id, userId, name, description, visibility, createdAt, updatedAt)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`
+  ).run(id, userId, name, description, visibility, ts, ts)
+  return db.prepare(`SELECT * FROM playlists WHERE id = ?`).get(id)
 }
 
 async function updatePlaylist(id, patch) {
-  return withLock(() => {
-    const db = getDb()
-    const existing = db.prepare(`SELECT * FROM playlists WHERE id = ?`).get(id)
-    if (!existing) return null
-    const name = typeof patch.name === 'string' ? patch.name : existing.name
-    const description =
-      typeof patch.description === 'string'
-        ? patch.description
-        : existing.description
-    const visibility =
-      typeof patch.visibility === 'string'
-        ? patch.visibility
-        : existing.visibility
-    db.prepare(
-      `UPDATE playlists SET name = ?, description = ?, visibility = ?, updatedAt = ? WHERE id = ?`
-    ).run(name, description, visibility, now(), id)
-    return db.prepare(`SELECT * FROM playlists WHERE id = ?`).get(id)
-  })
+  const db = getDb()
+  const existing = db.prepare(`SELECT * FROM playlists WHERE id = ?`).get(id)
+  if (!existing) return null
+  const name = typeof patch.name === 'string' ? patch.name : existing.name
+  const description =
+    typeof patch.description === 'string'
+      ? patch.description
+      : existing.description
+  const visibility =
+    typeof patch.visibility === 'string'
+      ? patch.visibility
+      : existing.visibility
+  db.prepare(
+    `UPDATE playlists SET name = ?, description = ?, visibility = ?, updatedAt = ? WHERE id = ?`
+  ).run(name, description, visibility, now(), id)
+  return db.prepare(`SELECT * FROM playlists WHERE id = ?`).get(id)
 }
 
 async function listPlaylistItems(playlistId) {
@@ -475,7 +499,7 @@ async function listPlaylistItems(playlistId) {
        FROM playlist_items pi
        LEFT JOIN videos v ON v.id = pi.videoId
        WHERE pi.playlistId = ?
-       ORDER BY pi.position ASC, datetime(pi.createdAt) ASC, pi.id ASC`
+       ORDER BY pi.position ASC, pi.createdAt ASC, pi.id ASC`
     )
     .all(playlistId)
 }
@@ -513,18 +537,16 @@ async function getVideoMetrics(videoId) {
 }
 
 async function ensureVideoMetrics(videoId) {
-  return withLock(() => {
-    const db = getDb()
-    const existing = db
-      .prepare(`SELECT * FROM video_metrics WHERE videoId = ?`)
-      .get(videoId)
-    if (existing) return existing
-    db.prepare(
-      `INSERT INTO video_metrics (videoId, views, likes, dislikes, comments, shares, updatedAt)
-       VALUES (?, 0, 0, 0, 0, 0, ?)`
-    ).run(videoId, now())
-    return db.prepare(`SELECT * FROM video_metrics WHERE videoId = ?`).get(videoId)
-  })
+  const db = getDb()
+  const existing = db
+    .prepare(`SELECT * FROM video_metrics WHERE videoId = ?`)
+    .get(videoId)
+  if (existing) return existing
+  db.prepare(
+    `INSERT INTO video_metrics (videoId, views, likes, dislikes, comments, shares, updatedAt)
+     VALUES (?, 0, 0, 0, 0, 0, ?)`
+  ).run(videoId, now())
+  return db.prepare(`SELECT * FROM video_metrics WHERE videoId = ?`).get(videoId)
 }
 
 async function updateVideoMetrics(videoId, patch = {}) {
@@ -567,7 +589,9 @@ export {
   updateUserPassword,
   // videos
   listVideos,
+  countVideos,
   getVideosByUser,
+  countVideosByUser,
   getVideo,
   isVideoOwner,
   createVideo,

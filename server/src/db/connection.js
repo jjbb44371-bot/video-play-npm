@@ -5,7 +5,7 @@ import { config } from '../config.js'
 
 const DB_FILE = path.join(config.dataDir, 'videos.db')
 
-const LATEST_SCHEMA_VERSION = 2
+const LATEST_SCHEMA_VERSION = 3
 
 let db
 
@@ -199,9 +199,27 @@ function migrateV2(database) {
   )
 }
 
+function migrateV3(database) {
+  database.exec(
+    `CREATE INDEX IF NOT EXISTS idx_videos_createdAt_id
+       ON videos(createdAt DESC, id DESC)`
+  )
+  database.exec(`
+    CREATE TRIGGER IF NOT EXISTS trg_videos_views_au
+    AFTER UPDATE OF views ON videos
+    BEGIN
+      UPDATE video_metrics
+         SET views = NEW.views,
+             updatedAt = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+       WHERE videoId = NEW.id;
+    END
+  `)
+}
+
 const migrations = {
   1: migrateV1,
-  2: migrateV2
+  2: migrateV2,
+  3: migrateV3
 }
 
 function migrate(database) {

@@ -19,7 +19,7 @@ export async function buildServer() {
   await ensureStorage()
   const fastify = Fastify({
     logger: true,
-    bodyLimit: config.maxUploadBytes
+    bodyLimit: 1024 * 1024
   })
 
   await fastify.register(cors, { origin: true })
