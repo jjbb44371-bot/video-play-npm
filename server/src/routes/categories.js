@@ -30,7 +30,7 @@ function slugify(value) {
 
 export default async function categoryRoutes(fastify) {
   fastify.get('/api/categories', async () => {
-    const categories = getCategoriesCached()
+    const categories = await getCategoriesCached()
     return { data: categories }
   })
 
