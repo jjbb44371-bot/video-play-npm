@@ -25,6 +25,9 @@ export const config = {
   clientDist: process.env.CLIENT_DIST || path.resolve(ROOT_DIR, '..', 'client', 'dist'),
   maxUploadBytes: Number(process.env.MAX_UPLOAD_BYTES) || 1024 * 1024 * 1024,
   allowedMimePrefix: 'video/',
+  corsOrigins: process.env.CORS_ORIGINS
+    ? process.env.CORS_ORIGINS.split(',').map((s) => s.trim())
+    : ['http://localhost:5173', 'http://127.0.0.1:5173'],
   auth: {
     authEnabled: process.env.AUTH_ENABLED !== 'false' && process.env.AUTH_ENABLED !== '0',
     sessionSecret: resolveSessionSecret(),

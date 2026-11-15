@@ -1,12 +1,9 @@
 import Fastify from 'fastify'
-import cors from '@fastify/cors'
-import cookie from '@fastify/cookie'
-import session from '@fastify/session'
-import multipart from '@fastify/multipart'
 import fastifyStatic from '@fastify/static'
 import { existsSync } from 'node:fs'
 import { config } from './config.js'
 import { ensureStorage } from './store.js'
+import { registerPlugins } from './plugins/register-plugins.js'
 import videoRoutes from './routes/videos.js'
 import authRoutes from './routes/auth.js'
 import commentRoutes from './routes/comments.js'
@@ -22,27 +19,7 @@ export async function buildServer() {
     bodyLimit: 1024 * 1024
   })
 
-  await fastify.register(cors, { origin: true })
-  await fastify.register(cookie)
-  await fastify.register(session, {
-    secret: config.auth.sessionSecret,
-    cookieName: config.auth.cookieName,
-    cookie: {
-      path: '/',
-      httpOnly: true,
-      secure: config.auth.cookieSecure,
-      sameSite: 'lax',
-      maxAge: config.auth.sessionMaxAge
-    },
-    saveUninitialized: false,
-    rolling: true
-  })
-  await fastify.register(multipart, {
-    limits: {
-      fileSize: config.maxUploadBytes,
-      files: 1
-    }
-  })
+  await registerPlugins(fastify)
 
   fastify.get('/api/health', async () => ({
     status: 'ok',
@@ -63,13 +40,22 @@ export async function buildServer() {
       root: config.clientDist,
       prefix: '/'
     })
-    fastify.setNotFoundHandler((req, reply) => {
-      if (req.raw.url?.startsWith('/api/')) {
-        return reply.code(404).send({ error: 'Not found' })
-      }
-      return reply.sendFile('index.html')
-    })
   }
+
+  // Unified not-found handler: API routes get a JSON envelope, the SPA gets index.html.
+  fastify.setNotFoundHandler((req, reply) => {
+    if (req.raw.url?.startsWith('/api/')) {
+      return reply.code(404).send({
+        error: { code: 'NOT_FOUND', message: 'Not found' }
+      })
+    }
+    if (existsSync(config.clientDist)) {
+      return reply.sendFile('index.html')
+    }
+    return reply.code(404).send({
+      error: { code: 'NOT_FOUND', message: 'Not found' }
+    })
+  })
 
   return fastify
 }

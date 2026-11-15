@@ -51,41 +51,84 @@ export default function Watch() {
     }
   }, [id, navigate])
 
-  if (status === 'loading') return <p className="state">Đang tải video…</p>
-  if (status === 'error') return <p className="state error">{error}</p>
+  if (status === 'loading') return (
+    <div className="min-h-screen flex items-center justify-center">
+      <span className="animate-pulse bg-surface/50 rounded-xl w-64 h-32 mx-auto text-center text-muted">
+        ▶
+      </span>
+    </div>
+  )
+
+  if (status === 'error') return (
+    <div className="min-h-screen flex flex-col items-center justify-center text-error">
+      <p>Lỗi: {error}</p>
+      <Link to="/" className="btn secondary mt-4">Trở về chủ</Link>
+    </div>
+  )
+
   if (!video) return null
 
   return (
-    <div className="watch">
-      <div className="player-wrap">
-        <video
-          className="player"
-          src={video.streamUrl}
-          controls
-          playsInline
-          preload="metadata"
-          onPlay={handlePlay}
-        />
-      </div>
-
-      <div className="watch-info">
-        <h1>{video.title}</h1>
-        <div className="watch-meta">
-          <span>{formatViews(video.views)}</span>
-          <span>·</span>
-          <span>{timeAgo(video.createdAt)}</span>
-          <span>·</span>
-          <span>{formatBytes(video.size)}</span>
+    <div className="min-h-screen bg-gray-950 dark:bg-gray-50">
+      <div className="max-w-7xl mx-auto">
+        {/* Video Player Section */}
+        <div className="relative aspect-[16/9] w-full bg-black rounded-lg overflow-hidden mb-6 shadow-lg">
+          <video
+            className="object-cover w-full h-full"
+            src={video.streamUrl}
+            playsInline
+            muted
+            preload="metadata"
+            onPlay={handlePlay}
+          />
+          <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+            <span className="text-4xl text-white font-bold">▶</span>
+          </div>
         </div>
-        {video.description && <p className="description">{video.description}</p>}
 
-        <div className="watch-actions">
-          <Link className="btn" to="/">
-            ← Về trang chủ
-          </Link>
-          <button className="btn danger" onClick={handleDelete}>
-            Xoá video
-          </button>
+        {/* Video Info & Actions */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div>
+            <h1 className="text-3xl font-bold text-white line-clamp-2 mb-3">{video.title}</h1>
+            <div className="watch-meta mb-4 text-sm text-muted">
+              <span>{formatViews(video.views)} xem</span>
+              <span>·</span>
+              <span>{timeAgo(video.createdAt)}</span>
+              <span>·</span>
+              <span>{formatBytes(video.size)}</span>
+            </div>
+            {video.description && (
+              <p className="text-white/80 mb-4 line-clamp-3">{video.description}</p>
+            )}
+            <div className="watch-actions">
+              <Link to="/" className="btn secondary w-full mb-2">
+                ← Về trang chủ
+              </Link>
+              <button
+                className="btn danger w-full"
+                onClick={handleDelete}
+              >
+                Xoá video
+              </button>
+            </div>
+          </div>
+
+          {/* Sidebar: Related/Details */}
+          <div className="space-y-4">
+            <div>
+              <h2 className="text-xl font-bold text-white border-b border-border pb-2">Thông tin video</h2>
+              <p className="text-white/80 text-sm">{video.description || 'Không có mô tả'}</p>
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-white border-b border-border pb-2">Chi tiết</h2>
+              <dl className="grid grid-cols-2 gap-2 text-white/80 text-sm">
+                <dt>Định dạng</dt>
+                <dd>{video.format || 'Unknown'}</dd>
+                <dt>Kích thước</dt>
+                <dd>{formatBytes(video.size)}</dd>
+              </dl>
+            </div>
+          </div>
         </div>
       </div>
     </div>

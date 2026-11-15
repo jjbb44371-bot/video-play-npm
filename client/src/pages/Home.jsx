@@ -6,7 +6,6 @@ import { formatViews, timeAgo } from '../utils.js'
 export default function Home() {
   const [videos, setVideos] = useState([])
   const [status, setStatus] = useState('loading')
-  const [error, setError] = useState('')
 
   useEffect(() => {
     let active = true
@@ -27,14 +26,25 @@ export default function Home() {
     }
   }, [])
 
-  if (status === 'loading') return <p className="state">Đang tải danh sách video…</p>
-  if (status === 'error') return <p className="state error">{error}</p>
+  if (status === 'loading') return (
+    <div className="min-h-[200px] flex items-center justify-center">
+      <span className="animate-pulse bg-surface/50 rounded-lg w-16 h-16 mx-auto text-muted">
+        ▶
+      </span>
+    </div>
+  )
+
+  if (status === 'error') return (
+    <div className="min-h-[200px] flex items-center justify-center text-error">
+      <p>Lỗi khi tải danh sách: {error}</p>
+    </div>
+  )
 
   if (videos.length === 0) {
     return (
-      <div className="empty">
-        <h2>Chưa có video nào</h2>
-        <p>Hãy tải lên video đầu tiên của bạn.</p>
+      <div className="min-h-[200px] flex flex-col items-center justify-center text-muted">
+        <h2 className="mb-2">Chưa có video nào</h2>
+        <p className="mb-4">Hãy tải lên video đầu tiên của bạn.</p>
         <Link className="btn primary" to="/upload">
           Tải video lên
         </Link>
@@ -43,15 +53,27 @@ export default function Home() {
   }
 
   return (
-    <div className="grid">
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
       {videos.map((video) => (
-        <Link key={video.id} to={`/watch/${video.id}`} className="card">
-          <div className="thumb">
-            <span className="play-badge">▶</span>
+        <Link
+          key={video.id}
+          to={`/watch/${video.id}`}
+          className="group hover:shadow-lg hover:border-accent transition-shadow border rounded-lg overflow-hidden bg-surface border-border"
+        >
+          <div className="relative w-full aspect-[16/9]">
+            <span className="absolute top-2 left-2 play-badge bg-accent text-white text-xs px-2 py-1 rounded">
+              ▶
+            </span>
+            <img
+              src={`/static/thumbs/${video.id}.jpg` || '/static/thumbs/placeholder.jpg'}
+              alt={video.title}
+              className="w-full h-full object-cover"
+              onError={e => e.target.src = '/static/thumbs/placeholder.jpg'}
+            />
           </div>
-          <div className="card-body">
-            <h3 title={video.title}>{video.title}</h3>
-            <p className="meta">
+          <div className="p-3">
+            <h3 className="line-clamp-2 title-font">{video.title}</h3>
+            <p className="meta text-small line-clamp-1 mt-2">
               {formatViews(video.views)} · {timeAgo(video.createdAt)}
             </p>
           </div>

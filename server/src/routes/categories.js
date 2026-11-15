@@ -1,6 +1,24 @@
 import { listCategories, getCategory, createCategory } from '../store.js'
 import { requireAuth } from '../auth/index.js'
 
+// Simple in-memory cache with TTL for metadata that changes rarely
+const categoryCache = new Map() // key: 'categories', value: { ttl: number, data: [...] }
+const CACHE_TTL = 60 * 1000 // 1 minute
+
+function invalidateCategoryCache() {
+  categoryCache.set('categories', { ttl: Date.now() + CACHE_TTL, data: undefined })
+}
+
+function getCategoriesCached() {
+  const cached = categoryCache.get('categories')
+  if (cached && cached.ttl > Date.now()) {
+    return cached.data
+  }
+  const fresh = await listCategories()
+  categoryCache.set('categories', { ttl: Date.now() + CACHE_TTL, data: fresh })
+  return fresh
+}
+
 function slugify(value) {
   return String(value || '')
     .trim()
@@ -12,7 +30,7 @@ function slugify(value) {
 
 export default async function categoryRoutes(fastify) {
   fastify.get('/api/categories', async () => {
-    const categories = await listCategories()
+    const categories = getCategoriesCached()
     return { data: categories }
   })
 

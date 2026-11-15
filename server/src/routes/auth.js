@@ -38,8 +38,13 @@ function destroySession(req) {
   })
 }
 
+const AUTH_RATE_LIMIT = { max: 10, timeWindow: '1 minute' }
+
 export default async function authRoutes(fastify) {
-  fastify.post('/api/auth/register', async (req, reply) => {
+  fastify.post(
+    '/api/auth/register',
+    { config: { rateLimit: AUTH_RATE_LIMIT } },
+    async (req, reply) => {
     const body = req.body || {}
     const username = normalizeUsername(body.username)
     const email = normalizeEmail(body.email)
@@ -75,7 +80,10 @@ export default async function authRoutes(fastify) {
     return reply.code(201).send({ data: user })
   })
 
-  fastify.post('/api/auth/login', async (req, reply) => {
+  fastify.post(
+    '/api/auth/login',
+    { config: { rateLimit: AUTH_RATE_LIMIT } },
+    async (req, reply) => {
     const body = req.body || {}
     const username = normalizeUsername(body.username)
     const password = typeof body.password === 'string' ? body.password : ''

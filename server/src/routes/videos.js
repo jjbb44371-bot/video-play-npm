@@ -102,8 +102,21 @@ export default async function videoRoutes(fastify) {
       return reply.code(404).send({ error: 'Video file missing on server' })
     }
 
+    const etag = `"${stat.size}-${stat.mtimeMs}"`
+    reply.header('ETag', etag)
+    reply.header('Cache-Control', 'public, max-age=3600')
     reply.header('Accept-Ranges', 'bytes')
-    reply.header('Content-Type', video.mimeType || 'application/octet-stream')
+
+    // Honor If-None-Match / If-Range for 304 Not Modified
+    const ifNoneMatch = req.headers['if-none-match']
+    const ifRange = req.headers['if-range']
+    if (ifNoneMatch && ifNoneMatch.includes(etag)) {
+      return reply.code(304).send()
+    }
+    if (ifRange && !stat.range) {
+      // If-Range is a valid index, return 206 or 200 depending on range request
+      // For simplicity, fall through to full response
+    }
 
     const range = req.headers.range
     if (range) {
@@ -135,11 +148,22 @@ export default async function videoRoutes(fastify) {
       return reply.send(createReadStream(filePath, { start, end }))
     }
 
+    // If no range and If-None-Match matches etag, would have returned 304 above
     reply.header('Content-Length', stat.size)
     return reply.send(createReadStream(filePath))
   })
 
-  fastify.post('/api/videos/:id/view', async (req, reply) => {
+  const viewVideoSchema = {
+  params: {
+    type: 'object',
+    properties: {
+      id: { type: 'string', minLength: 1 }
+    },
+    additionalProperties: false
+  }
+}
+
+fastify.post('/api/videos/:id/view', { schema: viewVideoSchema }, async (req, reply) => {
     const video = await incrementViews(req.params.id)
     if (!video) return reply.code(404).send({ error: 'Video not found' })
     return { data: publicVideo(video) }
