@@ -9,7 +9,7 @@ function invalidateCategoryCache() {
   categoryCache.set('categories', { ttl: Date.now() + CACHE_TTL, data: undefined })
 }
 
-function getCategoriesCached() {
+async function getCategoriesCached() {
   const cached = categoryCache.get('categories')
   if (cached && cached.ttl > Date.now()) {
     return cached.data

@@ -6,6 +6,7 @@ import { formatViews, timeAgo } from '../utils.js'
 export default function Home() {
   const [videos, setVideos] = useState([])
   const [status, setStatus] = useState('loading')
+  const [error, setError] = useState('')
 
   useEffect(() => {
     let active = true

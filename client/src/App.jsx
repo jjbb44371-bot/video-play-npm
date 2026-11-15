@@ -46,6 +46,8 @@ function useTheme() {
       return newTheme
     })
   }
+
+  return { isDark, toggleTheme }
 }
 
 export default function App() {
